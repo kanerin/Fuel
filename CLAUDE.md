@@ -42,6 +42,7 @@ AIエージェント（Claude Code など）がこのリポジトリで作業す
 | Cloud Functions（型） | `cd functions && npm run typecheck` |
 | Cloud Functions（単体） | `cd functions && npm test` |
 | Cloud Functions（結合、エミュレータ） | `cd functions && npm run test:integration` |
+| 結合テスト（Androidエミュレータ + Firebaseエミュレータ） | `./scripts/run_e2e.sh` |
 | セキュリティルール（エミュレータ） | `cd rules_test && npm test` |
 
 - テストファイルは対象と対称の場所に置く（`lib/services/meal_repository.dart` ↔ `test/services/meal_repository_test.dart`、
@@ -59,6 +60,25 @@ AIエージェント（Claude Code など）がこのリポジトリで作業す
 - `tester.enterText` はフレームを進めない。入力に応じて有効になるボタンを押す前に `await tester.pump()` を挟む
 - `testWidgets` の中で `stream.first` を await しない（偽の時計の中では値が届かず止まる）。保存結果の確認は `.get()` で読む
 - ボトムシートや画面下部の要素は、押す前に `tester.ensureVisible` でスクロールする（入力欄の裏に隠れていると押せない）
+
+### 結合テスト（`integration_test/`）
+
+- 「単体・ウィジェットテストでは通れない経路」だけを担当する: `main()`の初期化、`google-services.json`からのFirebaseの初期化、
+  実際のセキュリティルールを通したFirestoreの読み書き、Cloud Functionsの呼び出し、実機のレイアウト。画面のロジックはウィジェットテストに書く
+  （結合テストは1回15〜25分かかる）
+- 実行は `./scripts/run_e2e.sh`。`--dart-define=USE_FIREBASE_EMULATOR=true` が無いとテスト側が起動を拒否する（本番保護）
+- 利用者はテストごとに `signInAsNewUser` で作り直す（前のテストのアプリを片付けてからログアウトする。画面が購読したまま
+  ログアウトすると、権限エラーが「既に終わったテストの失敗」として計上されるフレークになる——aimaruで実際に起きた）。
+  最後のログアウトは `tearDownAll` で行う
+
+## CI/CD
+
+- `ci.yml` のジョブの `name:` は、developのRulesetの必須チェックの登録名と完全に一致させる。`name:` を変えたら登録名も直す
+  （実在しない名前が登録されていると、CIが全部緑でも永久にマージできない）
+- `GITHUB_TOKEN` によるpushは他のワークフローのpushトリガーを起動しない。`promote-to-stg.yml` は昇格後に
+  `release-stg.yml` を `workflow_dispatch` で明示的に起動している。`release-stg` へのpushを起点にするワークフローを足すときは注意
+- `release-stg.yml` のデプロイステップは `continue-on-error: true`（一時的な障害でテスターへの配布まで止めないため）。
+  失敗はジョブ末尾のステップでまとめて知らせる
 
 ## 実装上の決まり（過去の失敗から）
 

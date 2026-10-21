@@ -1,0 +1,266 @@
+name: CI
+
+# 変更が既存の挙動を壊していないことを機械的に確かめるワークフロー。
+# developのRulesetで、下の各ジョブを必須チェックに設定すること
+# （README「CI/CD」参照。登録名はここのジョブの name: と完全に一致させる）。
+#
+# ジョブを分けているのは、落ちた場所から原因が一目で分かるようにするため。
+#
+# このワークフローはFirebaseの秘密情報を一切使わない:
+# - Dart側に firebase_options.dart が無いので、解析・単体テストに設定ファイルは不要
+# - 結合テストは tool/ci/google-services.demo.json（エミュレータ専用のダミー）と
+#   demo-fuel プロジェクトのエミュレータで動き、本番のFirebaseに接続しない
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+  workflow_dispatch: {}
+
+concurrency:
+  # 同じブランチへ連続でpushしたとき、古い実行を止めて最新だけを走らせる
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # 誤ってAPIキー・署名鍵などをコミットした場合に検知する層
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  flutter:
+    name: Flutter (analyze, format & test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # infoも含めて0件にする（flutter analyzeはinfoがあると失敗する）
+      - name: Analyze
+        run: flutter analyze
+
+      # 最初から標準の整形に揃えてあるので、崩れたら失敗させる
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
+
+      # 単体・ウィジェットテスト。結合テスト(integration_test/)はe2eジョブで実機相当で流す
+      - name: Test
+        run: flutter test --coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-coverage
+          path: coverage/lcov.info
+          if-no-files-found: warn
+
+  functions:
+    name: Cloud Functions (typecheck, unit & integration)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      # Firestore エミュレータは JVM 上で動く
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      # 本番に含まれる依存（devDependencies以外）の high/critical を検出する
+      - name: Dependency audit (high/critical only)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # 判定ロジックの単体テスト（エミュレータ不要）
+      - name: Unit test
+        run: npm test
+
+      # Firestore・Authを読み書きする経路（回数制限のトランザクション・退会の再帰削除）
+      - name: Integration test
+        run: npm run test:integration
+
+      # デプロイされる形にビルドできることまで確かめる
+      - name: Build
+        run: npm run build
+
+  rules:
+    name: Security rules (Firestore)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rules_test
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: rules_test/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      # ルールはアプリを経由しない直接アクセスに対する最後の砦なので、毎回必ず検証する
+      - name: Test rules
+        run: npm test
+
+  e2e:
+    name: Integration test (Android emulator)
+    # Androidエミュレータ上でアプリを本当に起動し、main()の初期化、
+    # google-services.json からのFirebaseの初期化、実際のセキュリティルールを
+    # 通したFirestoreの読み書き、Cloud Functions の呼び出し、実機のレイアウトを確かめる。
+    # Firebaseはローカルのエミュレータ（demo-fuel）へ繋ぐので本番には触れない。
+    # エミュレータの起動込みで15〜25分かかる。
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      # JDKを2つ入れる。AndroidのGradleビルドは17、Firebaseエミュレータは21を使う。
+      # 複数指定した場合JAVA_HOMEは最後の版を指すので、17を後ろに置いている
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      # エミュレータ専用のダミー設定（本物の鍵は含まない。tool/ci/README.md）
+      - name: Use emulator-only Firebase config
+        run: cp tool/ci/google-services.demo.json android/app/google-services.json
+
+      - run: flutter pub get
+
+      # Functionsエミュレータは functions/lib（ビルド成果物）を読む
+      - name: Build Cloud Functions
+        working-directory: functions
+        run: npm ci && npm run build
+
+      # Androidエミュレータからは 10.0.2.2 でこのホストへ到達できる。
+      # GEMINI_API_KEY は渡さないので、AI推定は failed-precondition を返す
+      # （呼び出しが関数まで届くことを確かめる。meal_flow_test.dart）
+      - name: Start Firebase emulators
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          java -version
+
+          functions/node_modules/.bin/firebase emulators:start \
+            --only auth,firestore,functions --project demo-fuel \
+            > "${RUNNER_TEMP}/firebase-emulator.log" 2>&1 &
+          emulator_pid=$!
+
+          for _ in $(seq 1 90); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo "Firebaseエミュレータのプロセスが終了しました"
+              cat "${RUNNER_TEMP}/firebase-emulator.log"
+              exit 1
+            fi
+            if nc -z 127.0.0.1 8080 && nc -z 127.0.0.1 9099 && nc -z 127.0.0.1 5001; then
+              echo "Firebaseエミュレータ起動完了"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Firebaseエミュレータが起動しませんでした"
+          cat "${RUNNER_TEMP}/firebase-emulator.log"
+          exit 1
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # AVDをキャッシュして毎回の作成時間（数分）を省く
+      - name: Cache AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api34-google-apis-x86_64
+
+      - name: Create AVD snapshot
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVDのスナップショットを作成しました"
+
+      - name: Run integration tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # アニメーションを切るとpumpAndSettleが安定し、テストのフレークが減る
+          disable-animations: true
+          # このactionのscriptは1行ずつ別々の `sh -c` で実行されるため、
+          # バックスラッシュによる行継続は使えない。1行で書くこと
+          script: flutter test integration_test --dart-define=USE_FIREBASE_EMULATOR=true --reporter expanded
+
+      # 失敗時の原因調査用（ルールで拒否された・関数が読み込めなかった等がここで分かる）
+      - name: Upload emulator log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-emulator-log
+          path: ${{ runner.temp }}/firebase-emulator.log
+          if-no-files-found: ignore

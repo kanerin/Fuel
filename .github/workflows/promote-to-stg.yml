@@ -1,0 +1,76 @@
+name: Promote develop to release-stg
+
+# CI が develop 上で成功するたびに、develop の内容を release-stg へ
+# fast-forward で昇格し、テスター配布（release-stg.yml）を起動する。
+#
+# Firebase とテスター配布の準備（README「テスター配布（App Distribution）」）が
+# 済むまでは配布が必ず失敗するので、既定では動かさない。準備ができたら
+# リポジトリの Settings → Secrets and variables → Actions → Variables に
+# AUTO_PROMOTE_TO_STG = true を登録すると有効になる。
+#
+# 注意: GITHUB_TOKEN によるpushは他のワークフローの push トリガーを起動しない
+# （無限ループ防止の仕様）。そのため昇格したら release-stg.yml を
+# workflow_dispatch で明示的に起動する。
+# release-stg → release-prd（本番公開）は必ず人間が判断する。
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [develop]
+    types: [completed]
+
+concurrency:
+  group: promote-to-stg
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.event.workflow_run.conclusion == 'success' && vars.AUTO_PROMOTE_TO_STG == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write # release-stg.yml を workflow_dispatch で起動するために要る
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward release-stg to develop
+        id: ff
+        run: |
+          set -euo pipefail
+          # CIが通ったコミットそのものを昇格させる（CIの実行中にdevelopが進んでいても、
+          # 検証していないコミットは載せない）
+          target="${{ github.event.workflow_run.head_sha }}"
+          git fetch origin develop
+          if ! git ls-remote --exit-code --heads origin release-stg >/dev/null; then
+            echo "release-stg がまだ無いので、CIが通ったコミットから作ります"
+            git push origin "${target}:refs/heads/release-stg"
+            echo "before=" >> "$GITHUB_OUTPUT"
+            echo "promoted=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch origin release-stg
+          before="$(git rev-parse origin/release-stg)"
+          echo "before=$before" >> "$GITHUB_OUTPUT"
+          if [ "$before" = "$target" ]; then
+            echo "release-stg は既にこのコミットです。何もしません"
+            echo "promoted=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git merge-base --is-ancestor "$before" "$target"; then
+            # fast-forwardでなければサーバーが拒否する（force は使わない）
+            git push origin "${target}:refs/heads/release-stg"
+            echo "promoted=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release-stg が develop に対して分岐/先行しているためfast-forwardできません。手動確認が必要です" >&2
+            exit 1
+          fi
+
+      - name: Trigger tester distribution
+        if: steps.ff.outputs.promoted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release-stg.yml --ref release-stg \
+            -f from_sha="${{ steps.ff.outputs.before }}"

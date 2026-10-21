@@ -116,8 +116,78 @@ flutter run
 | Cloud Functions（結合、Firestore/Authエミュレータ） | `cd functions && npm run test:integration` |
 | セキュリティルール（Firestoreエミュレータ） | `cd rules_test && npm ci && npm test` |
 
+| 結合テスト（Androidエミュレータ/実機 + Firebaseエミュレータ） | `./scripts/run_e2e.sh` |
+
 エミュレータを使うテストは `demo-fuel` というデモ用のプロジェクトIDで動く
 （`demo-` で始まるIDは本番のFirebaseへ一切接続しない）。本番のデータには触れない。
+結合テストは `android/app/google-services.json` を一時的にエミュレータ専用のダミー
+（`tool/ci/google-services.demo.json`）へ差し替えて実行し、終わったら元に戻す。
+
+## CI/CD
+
+```
+作業ブランチ → develop（CI） → release-stg（テスター配布） → release-prd（本番。未整備）
+```
+
+| ワークフロー | いつ | 何をする |
+|---|---|---|
+| `ci.yml` | `develop` へのPR・push | 下の5つのジョブ。Firebaseの秘密情報は使わない |
+| `promote-to-stg.yml` | `develop` でCIが成功したとき | `release-stg` へfast-forwardで昇格し、テスター配布を起動する。**リポジトリ変数 `AUTO_PROMOTE_TO_STG=true` を登録するまでは動かない** |
+| `release-stg.yml` | `release-stg` へのpush・手動 | 検査 → ルール・インデックス・Cloud Functions を本番へデプロイ → リリースAPKを App Distribution でテスターへ配布 |
+
+### 必須チェックの設定
+
+Settings → Rules → Rulesets → New branch ruleset で、対象を `develop`、Enforcement status を
+`Active` にし、**Require status checks to pass** に次のジョブ名を登録する
+（`ci.yml` の `name:` と**完全に一致**させること。実在しない名前を登録すると、CIが全部緑でも
+永久にマージできなくなる——aimaruで実際に起きた）。
+
+| ジョブ名 | 目安時間 |
+|---|---|
+| `Secret scan` | 1分 |
+| `Flutter (analyze, format & test)` | 数分 |
+| `Cloud Functions (typecheck, unit & integration)` | 数分 |
+| `Security rules (Firestore)` | 数分 |
+| `Integration test (Android emulator)` | 15〜25分 |
+
+検索窓には直近で実行実績のあるチェックしか候補に出ないので、一度CIを走らせてから設定する。
+あわせて **Require a pull request before merging** と **Require linear history** も入れておくとよい
+（`promote-to-stg.yml` は `--ff-only` 相当で昇格するため、`develop` が直線である前提と合う）。
+
+### テスター配布（App Distribution）
+
+1. Firebase Console → App Distribution を開始し、テスター（自分のGoogleアカウントなど）を追加する
+2. リリース署名鍵を作る（**紛失するとPlay Storeに出したアプリを二度と更新できない**。パスワードマネージャーなどに保管する）
+   ```bash
+   keytool -genkey -v -keystore release.keystore -alias fuel -keyalg RSA -keysize 2048 -validity 10000
+   ```
+   この鍵のSHA-1もFirebase Console（Androidアプリ → フィンガープリント）に登録する（しないとGoogleログインが失敗する）
+3. Google Cloud Console → IAM でデプロイ・配布用のサービスアカウントを作り、次のロールを付けてJSONキーを発行する
+   （aimaruで実際にデプロイが通った組み合わせ）:
+   `roles/firebaseappdistro.admin`・`roles/firebaserules.admin`・`roles/datastore.indexAdmin`・
+   `roles/cloudfunctions.developer`・`roles/iam.serviceAccountUser`・`roles/secretmanager.secretAccessor`・
+   `roles/cloudbuild.builds.editor`
+4. Settings → Secrets and variables → Actions に次のSecretsを登録する（値はコミットしない）
+
+| Secret名 | 中身 |
+|---|---|
+| `GOOGLE_SERVICES_JSON_BASE64` | `base64 -i android/app/google-services.json \| tr -d '\n'` |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | 手順3のサービスアカウントのJSON（そのまま） |
+| `FIREBASE_PROJECT_ID` | FirebaseのプロジェクトID |
+| `FIREBASE_ANDROID_APP_ID` | Firebase Console → プロジェクトの設定 → Androidアプリの「アプリID」（`1:...:android:...`） |
+| `APP_DISTRIBUTION_TESTERS` | 通知するテスターのメール（カンマ区切り） |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -i release.keystore \| tr -d '\n'` |
+| `ANDROID_KEYSTORE_PASSWORD` | 署名鍵のストアパスワード |
+| `ANDROID_KEY_ALIAS` | 署名鍵のエイリアス（例: `fuel`） |
+| `ANDROID_KEY_PASSWORD` | 署名鍵のキーパスワード |
+
+5. 最初の配布: `release-stg` ブランチを `develop` から作ってpushする（`git push origin develop:release-stg`）か、
+   Actions → Distribute to testers を手動実行する。Secretsが足りなければ最初のステップで何が足りないかを出して止まる
+6. 以後 `develop` のCIが通るたびに自動で配布したい場合は、Settings → Secrets and variables → Actions → **Variables** に
+   `AUTO_PROMOTE_TO_STG` = `true` を登録する
+
+配布のたびに、前回配布した地点からのコミット（`feat:`→新機能、`fix:`→修正）がリリースノートになり、
+バージョン名も自動で上がる（`feat:` があればマイナー、それ以外はパッチ。aimaruと同じ仕組み）。
 
 ## 注意
 
