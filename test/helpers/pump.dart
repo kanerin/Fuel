@@ -137,3 +137,31 @@ final tinyPng = <int>[
   0x60,
   0x82,
 ];
+
+/// 一覧（ListView）の中の要素までスクロールして、押せる位置に出す。
+///
+/// ListViewは画面外の行をまだ作っていないので、ensureVisibleだけでは見つからない。
+/// 作られるまでスクロールしてから、画面内へ収める。
+Future<void> scrollToFind(
+  WidgetTester tester,
+  Finder finder, {
+  Finder? scrollable,
+}) async {
+  await tester.pumpAndSettle();
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      finder,
+      200,
+      scrollable: scrollable ?? find.byType(Scrollable).first,
+    );
+  }
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+}
+
+/// AppBarの戻るボタンを押す。アプリは日本語化されているので、
+/// 英語のツールチップ（Back）で探す tester.pageBack は使えない。
+Future<void> tapBack(WidgetTester tester) async {
+  await tester.tap(find.byType(BackButton));
+  await tester.pumpAndSettle();
+}
