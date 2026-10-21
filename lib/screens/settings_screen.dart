@@ -267,7 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 String profileSummary(UserProfile p) {
   final goal = p.goal == GoalType.maintain
       ? p.goal.label
-      : '${p.goal.label}（${paceLabel(p.weeklyRateKg)} 週${formatGrams(p.weeklyRateKg)}kg）';
+      : '${p.goal.label}（${paceLabel(p.weeklyRateKg)} 週${formatPace(p.weeklyRateKg)}kg）';
   return '${p.sex.label}・${p.age}歳・${formatGrams(p.heightCm)}cm・${formatWeight(p.weightKg)}kg\n'
       '${p.activityLevel.label}・$goal';
 }

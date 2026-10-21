@@ -94,8 +94,11 @@ class Nutrition {
   String toString() => 'Nutrition(${calories}kcal, P$protein, F$fat, C$carbs)';
 }
 
-/// 小数1桁に丸める。
-double roundTo1(double value) => (value * 10).roundToDouble() / 10;
+/// 小数1桁に丸める（0以上の値に使う）。
+///
+/// 21.9×1.5 は二進数の誤差で 32.8499… になり、そのまま丸めると32.8になる。
+/// 手計算（32.85→32.9）と食い違わないよう、ごく小さな値を足してから丸める。
+double roundTo1(double value) => ((value * 10) + 1e-9).roundToDouble() / 10;
 
 /// 有限の0以上の数値として読む。読めなければ0。
 double readNonNegative(Object? value) {

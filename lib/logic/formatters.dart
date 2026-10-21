@@ -12,6 +12,11 @@ String formatGrams(num grams) {
   return rounded.toStringAsFixed(1);
 }
 
+/// 「0.25」「0.5」（週あたりのペース。小数2桁まで、末尾の0は付けない）。
+/// formatGrams（小数1桁）を使うと、0.25が「0.3」と表示されてしまう。
+String formatPace(num kg) =>
+    kg.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+
 /// 「68.2」（体重は常に小数1桁）
 String formatWeight(num kg) => ((kg * 10).round() / 10).toStringAsFixed(1);
 

@@ -297,7 +297,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                   children: [
                     for (final r in _goal.rateOptions)
                       ChoiceChip(
-                        label: Text('${paceLabel(r)} ${formatGrams(r)}kg'),
+                        label: Text('${paceLabel(r)} ${formatPace(r)}kg'),
                         selected: _rate == r,
                         onSelected: (_) => setState(() => _rate = r),
                       ),

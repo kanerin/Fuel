@@ -29,6 +29,7 @@ class CalorieBarChart extends StatelessWidget {
       label:
           '${days.length}日間の摂取カロリーのグラフ。記録のある日は$recorded日、'
           '目標は${formatKcal(targetCalories)}キロカロリー',
+      container: true,
       excludeSemantics: true,
       child: SizedBox(
         height: height,

@@ -145,6 +145,9 @@ class CalorieRing extends StatelessWidget {
     final percent = (progress * 100).round();
     return Semantics(
       label: '目標カロリーの$percent%',
+      // 中の「50%」「目標比」を別々に読み上げさせず、この1文にまとめる
+      container: true,
+      excludeSemantics: true,
       child: SizedBox.square(
         dimension: size,
         child: CustomPaint(

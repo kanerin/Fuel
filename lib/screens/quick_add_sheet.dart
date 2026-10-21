@@ -47,7 +47,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
     super.didChangeDependencies();
     final services = AppScope.of(context);
     _favorites ??= services.favorites.watchFavorites();
-    _recent ??= services.meals.recentFoods();
+    // 「最近食べたもの」タブを開くまでFutureBuilderは購読しないので、その前に
+    // 失敗すると拾い手のない例外になる。ignoreで処理済みにしておく（あとから
+    // 購読したFutureBuilderにはエラーがそのまま届き、エラー表示になる）
+    _recent ??= services.meals.recentFoods()..ignore();
   }
 
   void _add(FoodItem food, EntrySource source) {

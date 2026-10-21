@@ -278,6 +278,7 @@ class _ShareBar extends StatelessWidget {
     return Semantics(
       label:
           '$labelのPFC比率 たんぱく質${protein.round()}% 脂質${fat.round()}% 炭水化物${carbs.round()}%',
+      container: true,
       excludeSemantics: true,
       child: Row(
         children: [

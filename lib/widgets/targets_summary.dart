@@ -24,7 +24,7 @@ class TargetsSummary extends StatelessWidget {
         : adjustment == 0
         ? '消費カロリーと同じ（維持）'
         : '消費カロリー ${adjustment < 0 ? '−' : '+'} ${formatKcal(adjustment.abs())} kcal'
-              '（週${formatGrams(profile.weeklyRateKg)}kgペース）';
+              '（週${formatPace(profile.weeklyRateKg)}kgペース）';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

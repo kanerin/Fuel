@@ -38,6 +38,7 @@ class WeightLineChart extends StatelessWidget {
     ]..sort((a, b) => a.date.compareTo(b.date));
     return Semantics(
       label: '体重の推移のグラフ。記録は${points.length}件',
+      container: true,
       excludeSemantics: true,
       child: SizedBox(
         height: height,

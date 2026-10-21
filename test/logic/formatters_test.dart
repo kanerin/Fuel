@@ -13,6 +13,13 @@ void main() {
     expect(formatGrams(12.96), '13');
   });
 
+  test('formatPace: 小数2桁まで、末尾の0は付けない（0.25を0.3にしない）', () {
+    expect(formatPace(0.25), '0.25');
+    expect(formatPace(0.5), '0.5');
+    expect(formatPace(0.75), '0.75');
+    expect(formatPace(1), '1');
+  });
+
   test('formatWeight: 常に小数1桁', () {
     expect(formatWeight(68), '68.0');
     expect(formatWeight(68.25), '68.3');

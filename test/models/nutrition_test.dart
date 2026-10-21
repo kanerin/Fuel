@@ -37,6 +37,12 @@ void main() {
     );
   });
 
+  test('roundTo1: 二進数の誤差があっても手計算どおりに四捨五入する', () {
+    expect(roundTo1(21.9 * 1.5), 32.9); // 32.849999… → 32.9
+    expect(roundTo1(0.04), 0);
+    expect(roundTo1(12.34), 12.3);
+  });
+
   test('caloriesFromMacros: P×4＋F×9＋C×4', () {
     expect(a.caloriesFromMacros, 20 * 4 + 20 * 9 + 85 * 4);
   });
