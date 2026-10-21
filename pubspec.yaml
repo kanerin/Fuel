@@ -1,0 +1,45 @@
+name: fuel
+description: "書くだけPFC管理のダイエットアプリ"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 日付ピッカーなどFlutter標準ダイアログの日本語化
+  flutter_localizations:
+    sdk: flutter
+
+  # Firebase。aimaruのCIでAndroidビルドが通っている版に揃えている
+  # （メジャー更新はAndroid側のビルド設定にも影響するため、上げるときは
+  # CIのIntegration test（Androidエミュレータ）が緑になることを確かめること）
+  firebase_core: ^4.13.0
+  firebase_auth: ^6.5.7
+  cloud_firestore: ^6.8.0
+  cloud_functions: ^6.3.6
+
+  # Googleログイン
+  google_sign_in: ^6.2.1
+
+  # 食事の写真からのPFC推定
+  image_picker: ^1.2.3
+
+  # flutter_localizations（SDK同梱）がintlを厳密にピン留めするため、
+  # ここでバージョンを固定すると解決に失敗する。SDK側の指定に合わせる。
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # サービス層・画面のテスト用のFirestoreのインメモリ実装
+  fake_cloud_firestore: ^4.2.0
+
+flutter:
+  uses-material-design: true

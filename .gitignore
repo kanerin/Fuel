@@ -1,0 +1,83 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Cloud Functions
+/functions/node_modules/
+/functions/lib/
+/functions/.secret.local
+
+# セキュリティルールのテスト
+/rules_test/node_modules/
+
+# Firebaseエミュレータのログ
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# ローカルの秘密情報（APIキー・署名鍵・サービスアカウント鍵など）。
+# 絶対にコミットしない。CIではGitHub Secretsを使う。
+.env
+.env.*
+*.keystore
+*.jks
+*.pem
+key.properties
+**/serviceAccountKey*.json
+**/*service-account*.json
+
+# Firebase設定ファイル（APIキーを含むため置かない）。
+# ローカルではFirebase Consoleからダウンロードするか `flutterfire configure` で生成する。
+# CIのリリースビルドは GOOGLE_SERVICES_JSON_BASE64 シークレットから復元し、
+# 結合テストはエミュレータ専用のダミー（tool/ci/google-services.demo.json）を使う。
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/lib/firebase_options.dart
+/.firebaserc
+
+# Claude Code のローカル状態
+.claude/settings.local.json
+.claude/worktrees/

@@ -1,0 +1,16 @@
+# 静的解析の設定。`flutter analyze` で実行する（CIでも必須）。
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    curly_braces_in_flow_control_structures: true
+    prefer_single_quotes: true
+    prefer_final_locals: true
+    unawaited_futures: true
+    avoid_dynamic_calls: true
+    directives_ordering: true

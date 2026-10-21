@@ -1,0 +1,17 @@
+{
+  "name": "fuel-rules-test",
+  "private": true,
+  "type": "module",
+  "description": "Firestore セキュリティルールのテスト。エミュレータ上で実行する",
+  "scripts": {
+    "test": "firebase emulators:exec --project demo-fuel --only firestore \"node --test --test-concurrency=1 *.test.js\""
+  },
+  "engines": {
+    "node": "22"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0",
+    "firebase-tools": "^13.35.1"
+  }
+}
