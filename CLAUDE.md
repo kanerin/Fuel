@@ -72,6 +72,11 @@ AIエージェント（Claude Code など）がこのリポジトリで作業す
   最後のログアウトは `tearDownAll` で行う
 - CIのAndroidエミュレータの画面は320×640dpと小さい。一覧の要素は画面外だと作られないので、押す前に
   `scrollAndTap`（見つかるまでスクロールする）を使う
+- 文字の入力は本物のソフトキーボードではなくテスト用の入力（TestTextInput）で行う（`initE2E`で登録済み）。
+  本物のキーボードは出入りに合わせて画面の高さを変え、押す直前にボタンの位置がずれて押し損ねるフレークになった。
+  押し損ねはその場で失敗にしてある（`WidgetController.hitTestWarningShouldBeFatal`）
+- 「画面に出た」の確認は、探す場所まで絞る（例: 一覧の行 `EntryTile` の中の文字）。`find.text` は入力欄の中身にも
+  一致するので、入力画面が開いたままでも「一覧に出た」と誤って通ってしまう
 - エミュレータ用のダミー設定（`tool/ci/google-services.demo.json`）のAPIキーは「`A`で始まる39文字」の形を保つ。
   形式が違うと、Cloud FunctionsのAndroid SDKだけが関数を呼ぶ前に例外を投げる（認証・Firestoreは動くので気づきにくい。
   `tool/ci/README.md`）

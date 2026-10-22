@@ -41,6 +41,14 @@ Future<void> initE2E() async {
       '本番のFirebaseへ接続した状態では実行できません。',
     );
   }
+  // 文字の入力は、本物のソフトキーボードではなくテスト用の入力（TestTextInput）で行う。
+  // 本物のキーボードは出入りに合わせて画面の高さを変えるので、押す直前に部品の位置が
+  // ずれてボタンを押し損ねる（CIで実際に起きたフレーク）。キーボードの表示はOS側の
+  // 振る舞いで、結合テストで確かめたいことではない
+  TestWidgetsFlutterBinding.instance.testTextInput.register();
+  // 押し損ねたらその場で失敗させる（後の別の確認で、原因の分かりにくい形で落ちないように）
+  WidgetController.hitTestWarningShouldBeFatal = true;
+
   await initializeFirebase();
   await initializeDateFormatting('ja');
 }

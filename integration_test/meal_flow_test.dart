@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fuel/screens/entry_form_screen.dart';
 import 'package:fuel/services/nutrition_estimator.dart';
+import 'package:fuel/widgets/meal_section.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'helpers/e2e.dart';
@@ -23,6 +25,12 @@ void main() {
           .collection('meals');
 
   testWidgets('手入力で追加 → 一覧とFirestoreに反映 → スワイプで削除・元に戻す', (tester) async {
+    // 一覧の行に出た「オートミール」（入力欄に残った同じ文字と取り違えないように行で探す）
+    final oatmealInList = find.descendant(
+      of: find.byType(EntryTile),
+      matching: find.text('オートミール'),
+    );
+
     final uid = await signInAsNewUser(tester, profile: e2eProfile);
     await pumpFuelApp(tester);
     await pumpUntil(tester, () => find.text('きょう').evaluate().isNotEmpty);
@@ -39,7 +47,12 @@ void main() {
 
     await pumpUntil(
       tester,
-      () => find.text('オートミール').evaluate().isNotEmpty,
+      () => find.byType(EntryFormScreen).evaluate().isEmpty,
+      reason: '「追加する」を押しても入力画面が閉じない',
+    );
+    await pumpUntil(
+      tester,
+      () => oatmealInList.evaluate().isNotEmpty,
       reason: '追加した記録が一覧に出ない',
     );
     await pumpUntilAsync(tester, () async {
@@ -55,13 +68,13 @@ void main() {
     expect(saved['calories'], 114);
 
     // 削除して、スナックバーが消える前（4秒）に「元に戻す」を押す
-    await tester.drag(find.text('オートミール'), const Offset(-600, 0));
+    await tester.drag(oatmealInList, const Offset(-600, 0));
     await settle(tester);
     await tester.tap(find.text('元に戻す'));
     await settle(tester);
     await pumpUntil(
       tester,
-      () => find.text('オートミール').evaluate().isNotEmpty,
+      () => oatmealInList.evaluate().isNotEmpty,
       reason: '元に戻した記録が一覧に出ない',
     );
     await pumpUntilAsync(tester, () async {
@@ -72,9 +85,9 @@ void main() {
     }, reason: '元に戻した記録がサーバーに残っていない');
 
     // もう一度削除して、今度は元に戻さない → サーバーからも消える
-    await tester.drag(find.text('オートミール'), const Offset(-600, 0));
+    await tester.drag(oatmealInList, const Offset(-600, 0));
     await settle(tester);
-    expect(find.text('オートミール'), findsNothing);
+    expect(oatmealInList, findsNothing);
     await pumpUntilAsync(tester, () async {
       final snap = await mealsOf(
         uid,
