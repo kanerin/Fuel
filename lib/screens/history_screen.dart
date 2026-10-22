@@ -172,9 +172,10 @@ class _AverageCard extends StatelessWidget {
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                  // 入りきらない（小さい画面・大きい文字）ときは目標を次の行へ送る
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.end,
                     children: [
                       Text(
                         '${formatKcal(average.calories)} kcal',
@@ -182,12 +183,9 @@ class _AverageCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          '目標 ${formatKcal(targets.calories)} kcal',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                      Text(
+                        '目標 ${formatKcal(targets.calories)} kcal',
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ],
                   ),

@@ -13,17 +13,19 @@ Future<void> setUpScreenTests() => initializeDateFormatting('ja');
 /// 画面を、アプリ本体と同じ設定（テーマ・日本語化・AppScope）で描画する。
 ///
 /// [phoneSize] を true にすると、一般的なAndroidスマートフォン（360×780dp）の
-/// 大きさで描画する。日本語は文字幅が広く、テストの既定（800×600）では
+/// 大きさで描画する（[logicalSize] で別の大きさも指定できる）。日本語は文字幅が広く、テストの既定（800×600）では
 /// 起きないはみ出しが実機で起きるため、主要な画面はこの大きさでも確かめる。
 Future<void> pumpApp(
   WidgetTester tester,
   TestEnv env,
   Widget home, {
   bool phoneSize = true,
+  Size? logicalSize,
   double textScale = 1.0,
 }) async {
-  if (phoneSize) {
-    tester.view.physicalSize = const Size(1080, 2340);
+  if (phoneSize || logicalSize != null) {
+    final size = logicalSize ?? const Size(360, 780);
+    tester.view.physicalSize = size * 3.0;
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
   }

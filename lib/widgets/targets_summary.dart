@@ -99,14 +99,21 @@ class _Row extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-              Text(
-                value,
-                style: emphasized
-                    ? theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      )
-                    : theme.textTheme.titleMedium,
+              // 小さい画面・大きい文字でも数値がはみ出さないよう、入りきらなければ縮める
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    value,
+                    style: emphasized
+                        ? theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          )
+                        : theme.textTheme.titleMedium,
+                  ),
+                ),
               ),
             ],
           ),
@@ -148,14 +155,8 @@ class _MacroRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
           Text('${formatGrams(grams)} g', style: theme.textTheme.titleMedium),
-          SizedBox(
-            width: 52,
-            child: Text(
-              '（$percent%）',
-              textAlign: TextAlign.right,
-              style: theme.textTheme.bodySmall,
-            ),
-          ),
+          const SizedBox(width: 4),
+          Text('（$percent%）', style: theme.textTheme.bodySmall),
         ],
       ),
     );
