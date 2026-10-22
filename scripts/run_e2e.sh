@@ -53,17 +53,26 @@ else
     > /tmp/fuel-firebase-emulator.log 2>&1 &
   emulator_pid=$!
 
+  # ポートが開いても関数の読み込みはその後に行われる。認証なしで呼んで
+  # 401（UNAUTHENTICATED）が返れば使える状態（読み込めていなければ404）
+  fn_url="http://127.0.0.1:5001/$PROJECT_ID/asia-northeast1/estimateNutrition"
+  ready=""
   echo -n "  起動待ち"
   for _ in $(seq 1 90); do
     if nc -z 127.0.0.1 8080 2>/dev/null && nc -z 127.0.0.1 9099 2>/dev/null && nc -z 127.0.0.1 5001 2>/dev/null; then
-      break
+      status="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+        -H 'Content-Type: application/json' -d '{"data":{}}' "$fn_url" || true)"
+      if [ "$status" = "401" ]; then
+        ready="yes"
+        break
+      fi
     fi
     echo -n "."
     sleep 2
   done
   echo ""
-  if ! nc -z 127.0.0.1 5001 2>/dev/null; then
-    echo "✗ Firebaseエミュレータが起動しませんでした。ログ: /tmp/fuel-firebase-emulator.log"
+  if [ -z "$ready" ]; then
+    echo "✗ Firebaseエミュレータ（またはCloud Functionsの読み込み）が完了しませんでした。ログ: /tmp/fuel-firebase-emulator.log"
     exit 1
   fi
 fi

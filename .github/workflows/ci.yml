@@ -197,6 +197,9 @@ jobs:
             > "${RUNNER_TEMP}/firebase-emulator.log" 2>&1 &
           emulator_pid=$!
 
+          # ポートが開いても、関数の読み込みはその後に行われる。認証なしで呼んで
+          # 401（UNAUTHENTICATED）が返れば関数が使える状態（読み込めていなければ404）
+          fn_url="http://127.0.0.1:5001/demo-fuel/asia-northeast1/estimateNutrition"
           for _ in $(seq 1 90); do
             if ! kill -0 "$emulator_pid" 2>/dev/null; then
               echo "Firebaseエミュレータのプロセスが終了しました"
@@ -204,12 +207,16 @@ jobs:
               exit 1
             fi
             if nc -z 127.0.0.1 8080 && nc -z 127.0.0.1 9099 && nc -z 127.0.0.1 5001; then
-              echo "Firebaseエミュレータ起動完了"
-              exit 0
+              status="$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+                -H 'Content-Type: application/json' -d '{"data":{}}' "$fn_url" || true)"
+              if [ "$status" = "401" ]; then
+                echo "Firebaseエミュレータ起動完了（Cloud Functionsの読み込みも完了）"
+                exit 0
+              fi
             fi
             sleep 2
           done
-          echo "Firebaseエミュレータが起動しませんでした"
+          echo "Firebaseエミュレータ（またはCloud Functionsの読み込み）が完了しませんでした"
           cat "${RUNNER_TEMP}/firebase-emulator.log"
           exit 1
 
@@ -256,7 +263,12 @@ jobs:
           # バックスラッシュによる行継続は使えない。1行で書くこと
           script: flutter test integration_test --dart-define=USE_FIREBASE_EMULATOR=true --reporter expanded
 
-      # 失敗時の原因調査用（ルールで拒否された・関数が読み込めなかった等がここで分かる）
+      # 失敗時の原因調査用（ルールで拒否された・関数が読み込めなかった等がここで分かる）。
+      # ジョブのログにも出しておく（アーティファクトを落とさずに読めるように）
+      - name: Show emulator log
+        if: failure()
+        run: cat "${RUNNER_TEMP}/firebase-emulator.log" || true
+
       - name: Upload emulator log
         if: failure()
         uses: actions/upload-artifact@v4
