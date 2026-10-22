@@ -146,13 +146,36 @@ Finder textFieldWithHint(String hintPrefix) => find.byWidgetPredicate(
 );
 
 /// スクロールして画面内に出してから押す。
-Future<void> scrollAndTap(WidgetTester tester, Finder finder) async {
+///
+/// 一覧（ListView）は表示範囲の近くの要素しか作らないので、見つからなければ
+/// 見つかるまでスクロールする。CIのAndroidエミュレータの画面（320×640dp）は
+/// ウィジェットテストの想定（360×780dp）より小さく、画面外になりやすい。
+Future<void> scrollAndTap(
+  WidgetTester tester,
+  Finder finder, {
+  Finder? scrollable,
+}) async {
   await settle(tester);
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      finder,
+      200,
+      scrollable: scrollable ?? find.byType(Scrollable).first,
+    );
+  }
   await tester.ensureVisible(finder);
   await settle(tester);
   await tester.tap(finder);
   await settle(tester);
 }
+
+/// 表示中のスナックバーの文言（失敗したときに何が出ていたかを示すため）。
+String snackBarText(WidgetTester tester) => tester
+    .widgetList<Text>(
+      find.descendant(of: find.byType(SnackBar), matching: find.byType(Text)),
+    )
+    .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+    .join(' / ');
 
 /// レイアウトのはみ出し（RenderFlex overflowなど）が起きていないことを確認する。
 void expectNoLayoutOverflow(WidgetTester tester, {String? context}) {

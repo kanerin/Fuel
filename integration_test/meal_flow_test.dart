@@ -3,6 +3,7 @@
 // あわせて、AI推定の呼び出しがCloud Functions（エミュレータ）まで届くことを確かめる。
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuel/services/nutrition_estimator.dart';
 import 'package:integration_test/integration_test.dart';
@@ -86,21 +87,39 @@ void main() {
   testWidgets('AI推定: Cloud Functions まで届き、APIキー未設定の理由が画面に出る', (tester) async {
     // CIのFunctionsエミュレータにはGEMINI_API_KEYを渡していないので、関数は
     // failed-precondition を返す。関数名・リージョン・認証の受け渡しが正しければ
-    // その理由が画面に出る（どれかがずれていると「用意されていません」になる）。
+    // その理由が届く（どれかがずれていると「用意されていません」など別の文言になる）。
     await signInAsNewUser(tester, profile: e2eProfile);
+
+    // 1) 画面を通さずに呼ぶ。届かない原因（関数名・リージョン・接続先）と
+    //    画面の操作の問題を切り分けるため
+    Object? error;
+    try {
+      await CloudNutritionEstimator().estimate(text: '牛丼並盛と味噌汁');
+    } catch (e) {
+      error = e;
+    }
+    expect(
+      error is NutritionEstimateException ? error.message : error,
+      kEstimateNotReadyMessage,
+      reason: 'estimateNutrition（Functionsエミュレータ）から期待した理由が返らない',
+    );
+
+    // 2) 画面から: 書いて送ると理由がスナックバーに出て、書いた文章は残る
     await pumpFuelApp(tester);
     await pumpUntil(tester, () => find.text('きょう').evaluate().isNotEmpty);
-
     await tester.enterText(textFieldWithHint('食べたものを入力'), '牛丼並盛と味噌汁');
     await tester.pump();
+    expect(find.text('牛丼並盛と味噌汁'), findsOneWidget, reason: '入力欄に文章が入っていない');
     await tester.tap(find.byTooltip('AIでPFCを推定'));
 
     await pumpUntil(
       tester,
-      () => find.text(kEstimateNotReadyMessage).evaluate().isNotEmpty,
-      timeout: const Duration(seconds: 60),
-      reason: 'AI推定の呼び出しが関数に届いていない（関数名・リージョン・未デプロイ）',
+      () => find.byType(SnackBar).evaluate().isNotEmpty,
+      // 呼び出しのタイムアウト（60秒）より長く待ち、通信の失敗も文言で見分けられるようにする
+      timeout: const Duration(seconds: 75),
+      reason: '推定の結果が画面に出ない（送信ボタンが押せていない可能性）',
     );
+    expect(snackBarText(tester), kEstimateNotReadyMessage);
     expect(find.text('牛丼並盛と味噌汁'), findsOneWidget, reason: '失敗したら入力は残す');
   });
 }
