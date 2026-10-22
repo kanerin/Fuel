@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/food_item.dart';
 import 'firebase_bootstrap.dart';
@@ -122,6 +122,9 @@ class CloudNutritionEstimator implements NutritionEstimator {
           },
       });
     } catch (e) {
+      // 画面に出すのは言い換えた文言だけなので、元の例外（code・message）は
+      // ログに残す（実機ではlogcat、結合テストではテストの出力で原因を追える）
+      debugPrint('[AI推定の呼び出しに失敗] $e');
       throw NutritionEstimateException(describeEstimateFailure(e));
     }
 
