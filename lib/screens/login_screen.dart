@@ -50,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(28),
                     ),
                     child: Icon(
-                      Icons.restaurant,
+                      Icons.local_fire_department,
                       size: 44,
                       color: scheme.onPrimaryContainer,
                     ),
