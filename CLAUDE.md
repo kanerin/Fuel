@@ -70,6 +70,11 @@ AIエージェント（Claude Code など）がこのリポジトリで作業す
 - 利用者はテストごとに `signInAsNewUser` で作り直す（前のテストのアプリを片付けてからログアウトする。画面が購読したまま
   ログアウトすると、権限エラーが「既に終わったテストの失敗」として計上されるフレークになる——aimaruで実際に起きた）。
   最後のログアウトは `tearDownAll` で行う
+- CIのAndroidエミュレータの画面は320×640dpと小さい。一覧の要素は画面外だと作られないので、押す前に
+  `scrollAndTap`（見つかるまでスクロールする）を使う
+- エミュレータ用のダミー設定（`tool/ci/google-services.demo.json`）のAPIキーは「`A`で始まる39文字」の形を保つ。
+  形式が違うと、Cloud FunctionsのAndroid SDKだけが関数を呼ぶ前に例外を投げる（認証・Firestoreは動くので気づきにくい。
+  `tool/ci/README.md`）
 
 ## CI/CD
 
