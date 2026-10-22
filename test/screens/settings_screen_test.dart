@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fuel/models/user_profile.dart';
+import 'package:fuel/screens/auth_gate.dart';
 import 'package:fuel/screens/favorites_screen.dart';
+import 'package:fuel/screens/login_screen.dart';
 import 'package:fuel/screens/profile_form_screen.dart';
 import 'package:fuel/screens/settings_screen.dart';
 
@@ -147,6 +149,34 @@ void main() {
 
       expect(find.text('削除しています…'), findsNothing);
       expect(find.textContaining('削除できませんでした'), findsOneWidget);
+    });
+
+    testWidgets('削除の完了より先にログイン状態が切れても、ログイン画面が残る', (tester) async {
+      // 実機では、サーバー側でアカウントが消えてログイン状態の変化が先に届き、
+      // AuthGateが開いていた画面（進捗の表示を含む）を閉じた後に削除の呼び出しが
+      // 返ることがある。その順でもルートの画面まで閉じて真っ暗にしない
+      final env = TestEnv();
+      await env.seedProfile(sampleProfile);
+      final pending = Completer<void>();
+      env.auth.onDelete = () {
+        env.auth.emit(null);
+        return pending.future;
+      };
+      await pumpApp(tester, env, const AuthGate());
+      await tester.tap(find.text('設定'));
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.text('アカウントを削除'));
+      await tapAndSettle(tester, find.text('次へ'));
+      await tapAndSettle(tester, find.text('削除する'));
+      expect(find.byType(LoginScreen), findsOneWidget);
+
+      pending.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('削除しています…'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

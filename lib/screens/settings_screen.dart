@@ -67,6 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final services = AppScope.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final ownRoute = ModalRoute.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
 
     // 取り消せない操作なので2段階で確認する
@@ -128,12 +129,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+    // 進捗のダイアログを閉じる（ログイン画面へはAuthGateが切り替える）。
+    // ログイン状態の変化が削除の完了より先に届くと、AuthGateがダイアログごと
+    // ルートまで戻しているので、pop()で1枚閉じるとルートの画面まで消えて
+    // 真っ暗になる。そのためこの画面のところまで戻す形で閉じる
+    void closeProgress() =>
+        navigator.popUntil((route) => route == ownRoute || route.isFirst);
+
     try {
       await services.auth.deleteAccount();
-      navigator.pop(); // 進捗のダイアログを閉じる。ログイン画面へはAuthGateが切り替える
+      closeProgress();
     } catch (e) {
       debugPrint('[アカウントの削除に失敗] $e');
-      navigator.pop();
+      closeProgress();
       messenger.showSnackBar(
         const SnackBar(content: Text('削除できませんでした。通信状態を確認して、もう一度お試しください。')),
       );
