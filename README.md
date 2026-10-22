@@ -117,7 +117,6 @@ flutter run
 | Cloud Functions（単体） | `cd functions && npm test` |
 | Cloud Functions（結合、Firestore/Authエミュレータ） | `cd functions && npm run test:integration` |
 | セキュリティルール（Firestoreエミュレータ） | `cd rules_test && npm ci && npm test` |
-
 | 結合テスト（Androidエミュレータ/実機 + Firebaseエミュレータ） | `./scripts/run_e2e.sh` |
 
 エミュレータを使うテストは `demo-fuel` というデモ用のプロジェクトIDで動く
