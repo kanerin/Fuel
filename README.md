@@ -73,6 +73,8 @@ aimaruの `aimaru-7eb2e` に相乗りしないこと。`firebase deploy` でセ�
    リリース署名（App Distribution・Play Store）の鍵のSHA-1も同じ画面で追加する
 3. `google-services.json` をダウンロードして `android/app/google-services.json` に置く
    （`.gitignore`済み。**コミットしない**）。`flutterfire configure` で生成してもよい
+   - **Googleログインの有効化（手順1-3）とSHA-1の登録の後に**ダウンロードすること。それより前の
+     ファイルにはGoogleログイン用のOAuthクライアント（`oauth_client`）が含まれず、ログインが失敗する
 
 Dart側の `firebase_options.dart` は不要（Androidでは `google-services.json` から
 生成される設定を `Firebase.initializeApp()` が読む。`lib/services/firebase_bootstrap.dart`）。

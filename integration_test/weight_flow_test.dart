@@ -22,8 +22,8 @@ void main() {
     await tester.tap(find.text('体重'));
     await settle(tester);
     await pumpUntil(tester, () => find.text('記録する').evaluate().isNotEmpty);
-    await tester.tap(find.text('記録する'));
-    await settle(tester);
+    // 「記録する」ボタンは一覧を読み込んでから拡大しながら現れるので、出きってから押す
+    await scrollAndTap(tester, find.text('記録する'));
 
     await tester.enterText(find.byType(TextField), '68');
     await tester.tap(find.widgetWithText(FilledButton, '記録する'));

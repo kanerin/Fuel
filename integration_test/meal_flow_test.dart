@@ -21,7 +21,7 @@ void main() {
           .doc(uid)
           .collection('meals');
 
-  testWidgets('手入力で追加 → 一覧とFirestoreに反映 → スワイプで削除 → 元に戻す', (tester) async {
+  testWidgets('手入力で追加 → 一覧とFirestoreに反映 → スワイプで削除・元に戻す', (tester) async {
     final uid = await signInAsNewUser(tester, profile: e2eProfile);
     await pumpFuelApp(tester);
     await pumpUntil(tester, () => find.text('きょう').evaluate().isNotEmpty);
@@ -53,24 +53,33 @@ void main() {
     expect(saved['source'], 'manual');
     expect(saved['calories'], 114);
 
+    // 削除して、スナックバーが消える前（4秒）に「元に戻す」を押す
     await tester.drag(find.text('オートミール'), const Offset(-600, 0));
     await settle(tester);
+    await tester.tap(find.text('元に戻す'));
+    await settle(tester);
+    await pumpUntil(
+      tester,
+      () => find.text('オートミール').evaluate().isNotEmpty,
+      reason: '元に戻した記録が一覧に出ない',
+    );
+    await pumpUntilAsync(tester, () async {
+      final snap = await mealsOf(
+        uid,
+      ).get(const GetOptions(source: Source.server));
+      return snap.docs.length == 1;
+    }, reason: '元に戻した記録がサーバーに残っていない');
+
+    // もう一度削除して、今度は元に戻さない → サーバーからも消える
+    await tester.drag(find.text('オートミール'), const Offset(-600, 0));
+    await settle(tester);
+    expect(find.text('オートミール'), findsNothing);
     await pumpUntilAsync(tester, () async {
       final snap = await mealsOf(
         uid,
       ).get(const GetOptions(source: Source.server));
       return snap.docs.isEmpty;
     }, reason: '削除がサーバーに反映されない');
-
-    await tester.tap(find.text('元に戻す'));
-    await settle(tester);
-    await pumpUntil(tester, () => find.text('オートミール').evaluate().isNotEmpty);
-    await pumpUntilAsync(tester, () async {
-      final snap = await mealsOf(
-        uid,
-      ).get(const GetOptions(source: Source.server));
-      return snap.docs.length == 1;
-    }, reason: '元に戻した記録がサーバーに保存されない');
     expectNoLayoutOverflow(tester, context: '記録の追加・削除');
   });
 
